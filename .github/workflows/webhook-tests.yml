@@ -42,24 +42,19 @@ jobs:
         # not downstream delivery.
 
   # ── Post-merge publish ─────────────────────────────────────────────────────
-  publish:
-    name: Publish to Postman Workspace
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Postman CLI
-        run: curl -o- "https://dl-cli.pstmn.io/install/unix.sh" | sh
-
-      - name: Authenticate Postman
-        run: postman login --with-api-key "${{ secrets.POSTMAN_API_KEY }}"
-
-      - name: Publish collection and environment to workspace
-        run: |
-          postman workspace push -y \
-            --message "ci: publish from ${{ github.sha }} — ${{ github.event.head_commit.message }}"
-        # Runs only after merge so unreviewed contracts are never shared.
-        # --push-strategy defaults to create/update (safe). Remove -y to
-        # make it interactive when first wiring up a new workspace binding.
+  # Disabled: .postman/resources.yaml points to the temp session workspace from
+  # `postman init`. To re-enable:
+  #   1. postman login
+  #   2. postman workspace bind <your-workspace-id>
+  #   3. Commit the updated .postman/resources.yaml
+  #   4. Uncomment the job below
+  #
+  # publish:
+  #   name: Publish to Postman Workspace
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: curl -o- "https://dl-cli.pstmn.io/install/unix.sh" | sh
+  #     - run: postman login --with-api-key "${{ secrets.POSTMAN_API_KEY }}"
+  #     - run: postman workspace push -y --message "ci: publish from ${{ github.sha }}"
