@@ -1,0 +1,52 @@
+$kind: http-request
+name: 'filter-miss (resource.bulk-action)'
+order: 5000
+method: POST
+url: '{{hookdeck_source_url}}'
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: X-Event-Type
+    value: resource.bulk-action
+  - key: X-Idempotency-Key
+    value: '{{idempotency_key}}'
+body:
+  type: json
+  content: |-
+    {}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const eventId = pm.variables.replaceIn('{{$randomUUID}}');
+      const timestamp = new Date().toISOString();
+      const idempotencyKey = 'filter-miss-' + Date.now();
+
+      const payload = JSON.stringify({
+        id: eventId,
+        event: "resource.bulk-action",
+        created_at: timestamp,
+        data: { resource_ids: ["res_001", "res_002"], action: "archive" }
+      });
+
+      pm.request.body.raw = payload;
+      pm.variables.set('idempotency_key', idempotencyKey);
+
+      // Still compute a valid signature — Hookdeck accepts the request but filters it before delivery
+      const secret = pm.environment.get('webhook_secret');
+      if (secret) {
+        const sig = CryptoJS.HmacSHA256(payload, secret).toString(CryptoJS.enc.Hex);
+        pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'sha256=' + sig });
+      }
+  - type: afterResponse
+    code: |-
+      pm.test('Hookdeck accepts the request (200) even when it will be filtered', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Response contains request_id (event was ingested before filtering)', () => {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('request_id').that.is.a('string');
+      });
+      // Filtering happens asynchronously after ingestion.
+      // Verify the event was filtered (not delivered) with:
+      //   hookdeck gateway event list --limit 5
+      // The event for this request_id should show status FILTERED.

@@ -1,0 +1,17 @@
+name: Hookdeck
+values:
+  - key: hookdeck_source_url
+    value: 'https://hkdk.events/ou0fax6iy9p9sa'
+    enabled: true
+    type: default
+    description: Hookdeck source URL for connection webhook-test-connection
+  - key: webhook_secret
+    value: ''
+    enabled: true
+    type: secret
+    description: HMAC secret for test-source signature verification (SHA256/hex/X-Webhook-Signature)
+  - key: hookdeck_retry_source_url
+    value: 'https://hkdk.events/kb0qoo7ac90kt3'
+    enabled: true
+    type: default
+    description: Hookdeck source URL for retry-test-connection (always returns 500 to trigger retries)

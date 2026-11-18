@@ -1,0 +1,48 @@
+$kind: http-request
+name: 'retry-trigger (500 destination)'
+order: 6000
+method: POST
+url: '{{hookdeck_retry_source_url}}'
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: X-Event-Type
+    value: resource.created
+  - key: X-Idempotency-Key
+    value: '{{idempotency_key}}'
+body:
+  type: json
+  content: |-
+    {}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const eventId = pm.variables.replaceIn('{{$randomUUID}}');
+      const timestamp = new Date().toISOString();
+      const idempotencyKey = 'retry-' + Date.now();
+
+      const payload = JSON.stringify({
+        id: eventId,
+        event: "resource.created",
+        created_at: timestamp,
+        data: { resource_id: "res_retry", resource_type: "order" }
+      });
+
+      pm.request.body.raw = payload;
+      pm.variables.set('idempotency_key', idempotencyKey);
+      pm.variables.set('retry_event_id', eventId);
+      // No signature — retry-test-source has no verification configured
+  - type: afterResponse
+    code: |-
+      pm.test('Hookdeck accepts the event for retry delivery (200)', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Response contains request_id', () => {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('request_id').that.is.a('string');
+        pm.variables.set('retry_request_id', body.request_id);
+      });
+      // Hookdeck will attempt delivery to the 500 destination and retry up to 3 times.
+      // Verify retry attempts with:
+      //   hookdeck gateway attempt list --limit 10
+      // You should see multiple attempts for this event with status FAILED.

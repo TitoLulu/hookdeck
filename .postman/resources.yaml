@@ -1,0 +1,6 @@
+cloudResources:
+  mocks:
+    ../postman/mocks/webhook-production-handler/config.yaml: 25458a26-af5b-4492-8e12-d23ac1f94fea
+workspace:
+  id: a6665747-bbb3-46d8-8eea-6f43ac3b0b8b
+  name: My Workspace

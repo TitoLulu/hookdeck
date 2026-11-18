@@ -1,0 +1,48 @@
+$kind: http-request
+name: 'bad-signature (rejection test)'
+order: 4000
+method: POST
+url: '{{hookdeck_source_url}}'
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: X-Event-Type
+    value: resource.created
+  - key: X-Webhook-Signature
+    value: sha256=invalidsignature000000000000000000000000000000000000000000000000
+  - key: X-Idempotency-Key
+    value: '{{idempotency_key}}'
+body:
+  type: json
+  content: |-
+    {
+      "id": "{{$randomUUID}}",
+      "event": "resource.created",
+      "created_at": "{{$isoTimestamp}}",
+      "data": {
+        "resource_id": "res_bad",
+        "resource_type": "order"
+      }
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const eventId = pm.variables.replaceIn('{{$randomUUID}}');
+      const timestamp = new Date().toISOString();
+      const idempotencyKey = 'bad-sig-' + Date.now();
+
+      const payload = JSON.stringify({
+        id: eventId,
+        event: "resource.created",
+        created_at: timestamp,
+        data: { resource_id: "res_bad", resource_type: "order" }
+      });
+
+      pm.request.body.raw = payload;
+      pm.variables.set('idempotency_key', idempotencyKey);
+      // Intentionally NOT computing a valid signature — YAML header carries the invalid one
+  - type: afterResponse
+    code: |-
+      pm.test('Hookdeck rejects bad signature with 401', () => {
+        pm.response.to.have.status(401);
+      });

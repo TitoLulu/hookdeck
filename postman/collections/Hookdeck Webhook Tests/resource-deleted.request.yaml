@@ -1,0 +1,60 @@
+$kind: http-request
+name: 'resource.deleted'
+order: 3000
+method: POST
+url: '{{hookdeck_source_url}}'
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: X-Event-Type
+    value: resource.deleted
+  - key: X-Idempotency-Key
+    value: '{{idempotency_key}}'
+body:
+  type: json
+  content: |-
+    {
+      "id": "{{$randomUUID}}",
+      "event": "resource.deleted",
+      "created_at": "{{$isoTimestamp}}",
+      "data": {
+        "resource_id": "res_001",
+        "resource_type": "order",
+        "deleted": true
+      }
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const eventId = pm.variables.replaceIn('{{$randomUUID}}');
+      const timestamp = new Date().toISOString();
+      const idempotencyKey = 'res-deleted-' + Date.now();
+
+      const payload = JSON.stringify({
+        id: eventId,
+        event: "resource.deleted",
+        created_at: timestamp,
+        data: { resource_id: "res_001", resource_type: "order", deleted: true }
+      });
+
+      pm.request.body.raw = payload;
+      pm.variables.set('idempotency_key', idempotencyKey);
+
+      const secret = pm.environment.get('webhook_secret');
+      if (secret) {
+        const sig = CryptoJS.HmacSHA256(payload, secret).toString(CryptoJS.enc.Hex);
+        pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: 'sha256=' + sig });
+      }
+  - type: afterResponse
+    code: |-
+      pm.test('Hookdeck acknowledges with 200', () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Response contains request_id', () => {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('request_id').that.is.a('string');
+      });
+      pm.test('Response status is SUCCESS', () => {
+        const body = pm.response.json();
+        pm.expect(body.status).to.equal('SUCCESS');
+      });

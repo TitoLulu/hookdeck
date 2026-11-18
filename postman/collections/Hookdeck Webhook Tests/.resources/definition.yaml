@@ -1,0 +1,7 @@
+$kind: collection
+name: Hookdeck Webhook Tests
+description: Generic sender collection for testing webhook ingestion, routing, and rules via Hookdeck.
+variables:
+  - key: hookdeck_source_url
+    value: 'https://hkdk.events/ou0fax6iy9p9sa'
+    description: Hookdeck source URL (connection webhook-test-connection / source test-source)
